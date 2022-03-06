@@ -1,0 +1,21 @@
+---
+title: "DadosDF-Parte2-Tcc"
+author: "Carlo Aleksandr"
+date: "02/03/2022"
+output: pdf_document
+---
+
+
+### Library e Db`s
+```{r}
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+library(tidyverse)
+
+DocentesDF        <- readRDS("DocentesDF.rds")
+EscolasDF         <- readRDS("EscolasDF.rds")
+GestorDF          <- readRDS("GestorDF.rds")
+MatriculaDF.rds   <- readRDS("MatriculaDF.rds")
+TurmasDF          <- readRDS("TurmasDF.rds")
+Enem19DF          <- readRDS("Enem19DF.rds")
+```
+
