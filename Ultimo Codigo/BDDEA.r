@@ -2,7 +2,7 @@ library("tidyverse")
 library("Benchmarking")
 library("AER")
 library("truncnorm")
-library("FEAR") #baixar site
+#baixar site
 
 
 
@@ -12,9 +12,26 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 
 BDDEA    <- readRDS("BDDEAF.rds")
-
+BDDEA <- BDDEA %>% mutate(ID=row_number())
+BDDEA<-BDDEA %>% mutate(alunosap= round(QTALUNOS*(MdAprov/100)))
+BDDEA<-BDDEA %>% mutate(alunosab= round(QTALUNOS*(MdAba1/100)))
+BDDEA<-BDDEA %>% mutate(alunosrep= round(QTALUNOS*(MdREPROB1/100))) %>% 
+  mutate(alunosrep = ifelse(alunosrep == 0,  0.001, alunosrep)) %>% 
+  mutate(alunosab = ifelse(alunosab == 0,  0.001, alunosab)) %>% 
+  filter(ID != 26)
 summary(BDDEA)
 head(BDDEA, 5)
+
+########################################
+# Estagio 1
+########################################
+
+
+
+
+
+
+
 
 ######## FASE 1 descritiva
 
@@ -26,8 +43,23 @@ ProdutosF1<-cbind(BDDEA$QTALUNOS)
 I1<-matrix(c(BDDEA$ServMD/BDDEA$QTALUNOS) ,ncol=1) # divisão de X1/Z
 I2<- matrix(c(BDDEA$QTsalasMD/BDDEA$QTALUNOS),ncol=1) # divisão de X2/Z
 dea.plot.isoquant(I1, I2, RTS="crs", txt=1:154)
-
 ### ainda sem indice de eff apenas pode se notar possivel indicativo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ######## FASE 2 descritiva
@@ -36,24 +68,26 @@ InsumosF2<-cbind(BDDEA$QTALUNOS)
 
 ### usando a inversa pq esse produtos sao indesejados assim tem que minimizar
 
-ProdutosF2<-cbind( 1/(BDDEA$MdREPROB1), 1/(BDDEA$MdAba1))
+
+ProdutosF2<-cbind(BDDEA$alunosap)
 
 
-# Gráfico (isoquanta) da tecnologia CRS do 2º Estágio
+# Gráfico (fronteira) da tecnologia vRS do 2º Estágio
 I1<-matrix(c(ProdutosF2[,1]/BDDEA$QTALUNOS) ,ncol=1) # divisão de z1/x1
-I2<- matrix(c(ProdutosF2[,2]/BDDEA$QTALUNOS),ncol=1) # divisão de z2/x1
-dea.plot.transform(I1, I2, RTS="crs", txt=1:154)
-
-
-## 131 e 142 nao reprovaram/abandonaram mas a quantidade de alunos do 131 e menor 
-
+# I2<- matrix(c(ProdutosF2[,2]/BDDEA$QTALUNOS),ncol=1) # divisão de z2/x1
+ dea.plot.frontier(InsumosF2, ProdutosF2, RTS="vrs", txt=1:154)
+ dea.plot.frontier(InsumosF2, ProdutosF2, RTS="crs", txt=1:154)
+ 
 
 ### ainda sem indice de eff apenas pode se notar possivel indicativo
 
 
 ######## FASE 3 descritiva
 
-InsumosF3<-cbind(BDDEA$MdREPROB1, BDDEA$MdAba1) 
+ 
+
+ 
+InsumosF3<-cbind(BDDEA$alunosrep, BDDEA$alunosab) 
 
 ### usando a inversa pq esse produtos sao indesejados assim tem que minimizar
 
@@ -143,7 +177,7 @@ hist(BDDEA$est_vrs_super1, xlab = "Super Eficiência VRS 1° Estagio", main = NA
 
 estagio2 <- dea(InsumosF2, ProdutosF2, RTS = "CRS", ORIENTATION = "out", SLACK = TRUE)
 BDDEA$eff2<-eff(estagio2)
-round(1/BDDEA$eff2, 4) ###verificando a inversa por causa dos valores altos
+#era antes round(1/BDDEA$eff2, 4) ###verificando a inversa por causa dos valores altos
 
 #eff maior que 1 pq e orientada ao produto
 summary(BDDEA$eff2)
@@ -205,7 +239,7 @@ BDDEA$est_vrs_super2<-est_vrs_super2$eff
 
 #orientacao saida pq quero minimizar o numeros de abandono e reprovacao , modelo retorno constante de escala(crs) pq ele e mais restritivo compara geral.
 
-estagio3 <- dea(InsumosF3, ProdutosF3, RTS = "CRS", ORIENTATION = "out", SLACK = TRUE)
+estagio3 <- dea(InsumosF3, ProdutosF3, RTS = "CRS", ORIENTATION = "out")
 BDDEA$eff3<-eff(estagio3)
 # round(1/BDDEA$eff3, 4) ###verificando a inversa por causa dos valores altos
 
@@ -272,14 +306,164 @@ BDDEA$est_vrs_super3<-est_vrs_super3$eff
 
 
 
-# Identificação dos outliers da 1º Estágio 
+# Identificação dos outliers da 1º Estágio usando o volume como parametro
+library("FEAR") 
+
+# #library(FEAR) ###baixar no site
+# tap1<-ap(X=t(InsumosF1), Y=t(ProdutosF1), NDEL=15)
+# print(cbind(tap1$imat,tap1$r0), na.print = "", digits = 2)
+# outlier.ap.plot(tap1$ratio)
 
 
-#library(FEAR) ###baixar no site
-tap<-ap(X=t(x), Y=t(y), NDEL=5)
-print(cbind(tap$imat,tap$r0), na.print = "", digits = 2)
-outlier.ap.plot(tap$ratio)
+# unidades outlier 1 [ 68   26   97   94   83 ]
+OUT1<- c(68, 26, 97, 94, 83)
+
+T1<- BDDEA %>% filter(ID %in% OUT1) %>% select(est_crs_super1, est_vrs_super1)
+
+T1
+
+summary(BDDEA$est_crs_super1)
+summary(BDDEA$est_vrs_super1)
+
+
+# Identificação dos outliers da 2º Estágio
+# tap2<-ap(X=t(InsumosF2), Y=t(ProdutosF2), NDEL=15)
+# print(cbind(tap2$imat,tap2$r0), na.print = "", digits = 2)
+# outlier.ap.plot(tap2$ratio)
+
+# unidades outlier 2 {97  103   80  123   68  121   37   79 }
+
+
+
+OUT2<- c(97, 103, 80, 123, 68, 121, 37, 79)
+
+T2<- BDDEA %>% filter(ID %in% OUT2) %>% select(est_crs_super2, est_vrs_super2)
+
+T2
+
+summary(BDDEA$est_crs_super2)
+summary(BDDEA$est_vrs_super2)
+
+
+# Identificação dos outliers da 3º Estágio
+# tap3<-ap(X=t(InsumosF3), Y=t(ProdutosF3), NDEL=15)
+# print(cbind(tap3$imat,tap3$r0), na.print = "", digits = 2)
+# outlier.ap.plot(tap3$ratio)
+
+
+# unidades outlier 3 {63   97  106   79   68  103  121   54  117  }
+
+OUT3<- c(63, 97, 106, 79, 68, 103, 121, 54, 117)
+
+T3 <- BDDEA %>% filter(ID %in% OUT3) %>% select(est_crs_super3, est_vrs_super3)
+
+T3
+
+summary(BDDEA$est_crs_super3)
+summary(BDDEA$est_vrs_super3)
+
+#a partir da super eff se removeu a dmu 26
+
+# Teste estatístico usando bootstrapping das premissas do modelo (CVS vs VRS) do 1º Estágio
+nrep<-2000
+e<-1/estagio1$eff
+ev<-1/estagio1rs$eff
+sum(e)/sum(ev)
+InsumosF1=t(InsumosF1)
+ProdutosF1=t(ProdutosF1)
+Bc <- boot.sw98(InsumosF1,ProdutosF1,NREP=nrep,RTS=3)
+Bv <- boot.sw98(InsumosF1,ProdutosF1,NREP=nrep,RTS=1,XREF=InsumosF1,YREF=ProdutosF1,DREF=1/e)
+s <- colSums(1/Bc$boot)/colSums(1/Bv$boot)
+
+critValue(s,0.05)
+
+
+###########
+# A estimativa de S é 0.8948057
+#  Ho: T is CRS; 
+# ou seja não rejeitamos que existam retornos constantes de escala pois S=0.8109906. 
+# Se fôssemos fazer mais cálculos sob este modelo, assumiríamos, 
+# portanto, retornos constantes de escala e usaríamos uma tecnologia CRS.
+# Em outras palavras, se o valor estimado de S for menor que o valor crítico 0.8109906, 
+# rejeitamos a hipótese. Correspondentemente, como a estimativa de S=0.8948057, 
+# não rejeitamos a hipótese.
+###             CRS               #######
+
+
+
+
+
+
+
+
+
+
+# Teste estatístico usando bootstrapping das premissas do modelo (CVS vs VRS) do 2º Estágio
+nrep<-2000
+e<-1/estagio2$eff
+ev<-1/estagio2rs$eff
+sum(e)/sum(ev)
+InsumosF2=t(InsumosF2)
+ProdutosF2=t(ProdutosF2)
+Bc <- boot.sw98(InsumosF2,ProdutosF2,NREP=nrep,RTS=3)
+Bv <- boot.sw98(InsumosF2,ProdutosF2,NREP=nrep,RTS=1,XREF=InsumosF2,YREF=ProdutosF2,DREF=1/e)
+s <- colSums(1/Bc$boot)/colSums(1/Bv$boot)
+
+critValue(s,0.05)
+
+############### vrs pois s < crit
+
+
+
+
+
+
+# Teste estatístico usando bootstrapping das premissas do modelo (CVS vs VRS) do 3º Estágio
+nrep<-2000
+e<-1/estagio3$eff
+ev<-1/estagio3rs$eff
+sum(e)/sum(ev)
+InsumosF3=t(InsumosF3)
+ProdutosF3=t(ProdutosF3)
+Bc <- boot.sw98(InsumosF3,ProdutosF3,NREP=nrep,RTS=3)
+Bv <- boot.sw98(InsumosF3,ProdutosF3,NREP=nrep,RTS=1,XREF=InsumosF3,YREF=ProdutosF3,DREF=1/e)
+s <- colSums(1/Bc$boot)/colSums(1/Bv$boot)
+
+critValue(s,0.05)
+
+############### crs pois s > crit
+
 
 
 ### networking e multiplicar o inverso das eficiencias 
 #### usar o bootstrap para saber qual modelo usar
+
+
+# Intervalos de confiança 1º Estágio
+I<-InsumosF1
+O<-ProdutosF1
+d1E<-FEAR::dea(I,O,RTS = 3, ORIENTATION = 1) # com CRS orientado aos outputs
+b1E<-boot.sw98(I,O, RTS = 3, ORIENTATION = 1, NREP = 2000)
+plot(b1E$dhat,ylim = c(.5,13), main = NA, xlab = "DMU",ylab ="Efficiency CRS Otput Orientation")
+points(b1E$dhat.bc, pch=5)
+for(i in 1:30) lines(rep(i,2), b1E$conf.int[i,], type="o",pch=3)
+
+
+# Intervalos de confiança 2º Estágio
+I2<-InsumosF2
+O2<-InsumosF2
+d2E<-FEAR::dea(I2,O2,RTS = 1, ORIENTATION = 1) # com VRS orientado aos outputs
+b2E<-boot.sw98(I2,O2, RTS = 1, ORIENTATION = 1, NREP = 2000)
+plot(b2E$dhat,ylim = c(.5,42), main = NA, xlab = "DMU",ylab ="Efficiency CRS Output Orientation")
+points(b2E$dhat.bc, pch=5)
+for(i in 1:30) lines(rep(i,2), b2E$conf.int[i,], type="o",pch=3)
+
+# Intervalos de confiança 3º Estágio
+I3<-InsumosF3
+O3<-ProdutosF3
+d3E<-FEAR::dea(I3,O3,RTS = 3, ORIENTATION = 1) # com CRS orientado aos outputs
+b3E<-boot.sw98(I3,O3, RTS = 3, ORIENTATION = 1, NREP = 2000)
+plot(b3E$dhat,ylim = c(.5,13), main = NA, xlab = "DMU",ylab ="Efficiency CRS Otput Orientation")
+points(b3E$dhat.bc, pch=5)
+for(i in 1:30) lines(rep(i,2), b3E$conf.int[i,], type="o",pch=3)
+
