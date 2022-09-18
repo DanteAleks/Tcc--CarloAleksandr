@@ -2,13 +2,13 @@ library("tidyverse")
 library("Benchmarking")
 library("AER")
 library("truncnorm")
+library("xlsx")
 #baixar site
 
 
 
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-
 
 
 BDDEA    <- readRDS("BDDEAF.rds")
@@ -21,6 +21,9 @@ BDDEA<-BDDEA %>% mutate(alunosrep= round(QTALUNOS*(MdREPROB1/100))) %>%
   filter(ID != 26)
 summary(BDDEA)
 head(BDDEA, 5)
+
+
+
 
 ########################################
 # Estagio 1
@@ -40,9 +43,9 @@ ProdutosF1<-cbind(BDDEA$QTALUNOS)
 
 
 # Gráfico (isoquanta) da tecnologia CRS do 1º Estágio
-I1<-matrix(c(BDDEA$ServMD/BDDEA$QTALUNOS) ,ncol=1) # divisão de X1/Z
-I2<- matrix(c(BDDEA$QTsalasMD/BDDEA$QTALUNOS),ncol=1) # divisão de X2/Z
-dea.plot.isoquant(I1, I2, RTS="crs", txt=1:154)
+I1<-matrix(c(BDDEA$ServMD) ,ncol=1) # divisão de X1/Z
+I2<- matrix(c(BDDEA$QTsalasMD),ncol=1) # divisão de X2/Z
+dea.plot.isoquant(I1, I2, RTS="crs", txt=1:dim(InsumosF1)[1])
 ### ainda sem indice de eff apenas pode se notar possivel indicativo
 
 
@@ -110,7 +113,7 @@ dea.plot.isoquant(I1, I2, RTS="crs", txt=1:154)
 
 #orientacao saida pq quero maximizar o numeros de alunos , modelo retorno constante de escala(crs) pq ele e mais restritivo compara geral.
 
-estagio1 <- dea(InsumosF1, ProdutosF1, RTS = "CRS", ORIENTATION = "out", SLACK = TRUE)
+estagio1 <- Benchmarking::dea(InsumosF1, ProdutosF1, RTS = "CRS", ORIENTATION = "out", SLACK = TRUE)
 BDDEA$eff1<-eff(estagio1)
 
 
@@ -299,8 +302,38 @@ BDDEA$est_vrs_super3<-est_vrs_super3$eff
 # hist(BDDEA$est_vrs_super3, xlab = "Super Eficiência VRS 3° Estagio", main = NA)
 
 
+####################   DESCRITIVA
+
+summary(BDDEA)
+
+BDDEAOUT    <- readRDS("BDDEAF.rds")
+BDDEAOUT <- BDDEAOUT %>% mutate(ID=row_number())
+BDDEAOUT<-BDDEAOUT %>% mutate(alunosap= round(QTALUNOS*(MdAprov/100)))
+BDDEAOUT<-BDDEAOUT %>% mutate(alunosab= round(QTALUNOS*(MdAba1/100)))
+BDDEAOUT<-BDDEAOUT %>% mutate(alunosrep= round(QTALUNOS*(MdREPROB1/100))) %>% 
+  mutate(alunosrep = ifelse(alunosrep == 0,  0.001, alunosrep)) %>% 
+  mutate(alunosab = ifelse(alunosab == 0,  0.001, alunosab)) %>% 
+  filter(ID == 26)
 
 
+table(BDDEA$Dependência.Administrativa,(BDDEA$ServMD<7))
+table(BDDEA$Dependência.Administrativa,(BDDEA$QTALUNOS>990))
+
+table(BDDEA$Dependência.Administrativa,(BDDEA$MdAprov >96.43))
+table(BDDEA$Dependência.Administrativa,(BDDEA$MdAba1>3.533))
+table(BDDEA$Dependência.Administrativa,(BDDEA$MdREPROB1>10.3))
+
+
+table(BDDEA$Dependência.Administrativa,(BDDEA$QTsalasMD>17))
+
+
+sd(BDDEA$ServMD)
+sd(BDDEA$QTALUNOS)
+sd(BDDEA$QTsalasMD)
+sd(BDDEA$MediaEnem)
+sd(BDDEA$alunosap)
+sd(BDDEA$alunosab)
+sd(BDDEA$alunosrep)
 
 
 
@@ -308,11 +341,10 @@ BDDEA$est_vrs_super3<-est_vrs_super3$eff
 
 # Identificação dos outliers da 1º Estágio usando o volume como parametro
 library("FEAR") 
-
-# #library(FEAR) ###baixar no site
-# tap1<-ap(X=t(InsumosF1), Y=t(ProdutosF1), NDEL=15)
-# print(cbind(tap1$imat,tap1$r0), na.print = "", digits = 2)
-# outlier.ap.plot(tap1$ratio)
+###################26 foi retirada como outlier
+tap1<-ap(X=t(InsumosF1), Y=t(ProdutosF1), NDEL=15)
+print(cbind(tap1$imat,tap1$r0), na.print = "", digits = 2)
+outlier.ap.plot(tap1$ratio)
 
 
 # unidades outlier 1 [ 68   26   97   94   83 ]
@@ -327,9 +359,9 @@ summary(BDDEA$est_vrs_super1)
 
 
 # Identificação dos outliers da 2º Estágio
-# tap2<-ap(X=t(InsumosF2), Y=t(ProdutosF2), NDEL=15)
-# print(cbind(tap2$imat,tap2$r0), na.print = "", digits = 2)
-# outlier.ap.plot(tap2$ratio)
+tap2<-ap(X=t(InsumosF2), Y=t(ProdutosF2), NDEL=15)
+print(cbind(tap2$imat,tap2$r0), na.print = "", digits = 2)
+outlier.ap.plot(tap2$ratio)
 
 # unidades outlier 2 {97  103   80  123   68  121   37   79 }
 
@@ -346,14 +378,14 @@ summary(BDDEA$est_vrs_super2)
 
 
 # Identificação dos outliers da 3º Estágio
-# tap3<-ap(X=t(InsumosF3), Y=t(ProdutosF3), NDEL=15)
-# print(cbind(tap3$imat,tap3$r0), na.print = "", digits = 2)
-# outlier.ap.plot(tap3$ratio)
+tap3<-ap(X=t(InsumosF3), Y=t(ProdutosF3), NDEL=15)
+print(cbind(tap3$imat,tap3$r0), na.print = "", digits = 2)
+outlier.ap.plot(tap3$ratio)
 
 
 # unidades outlier 3 {63   97  106   79   68  103  121   54  117  }
 
-OUT3<- c(63, 97, 106, 79, 68, 103, 121, 54, 117)
+OUT3<- c(78, 75, 80, 62, 123, 26, 63, 97, 106, 79, 68, 103, 121, 54, 117)
 
 T3 <- BDDEA %>% filter(ID %in% OUT3) %>% select(est_crs_super3, est_vrs_super3)
 
@@ -361,6 +393,9 @@ T3
 
 summary(BDDEA$est_crs_super3)
 summary(BDDEA$est_vrs_super3)
+
+
+
 
 #a partir da super eff se removeu a dmu 26
 
@@ -436,7 +471,15 @@ critValue(s,0.05)
 
 
 ### networking e multiplicar o inverso das eficiencias 
-#### usar o bootstrap para saber qual modelo usar
+
+
+### Anexos
+
+
+ANEXOA<- BDDEA %>% select(ID, NO_ENTIDADE, est_crs_super1, est_vrs_super1, est_crs_super2, est_vrs_super2, est_crs_super3, est_vrs_super3)
+
+write.xlsx(ANEXOA, "ANEXOA.xlsx")
+
 
 
 # Intervalos de confiança 1º Estágio
@@ -444,26 +487,113 @@ I<-InsumosF1
 O<-ProdutosF1
 d1E<-FEAR::dea(I,O,RTS = 3, ORIENTATION = 1) # com CRS orientado aos outputs
 b1E<-boot.sw98(I,O, RTS = 3, ORIENTATION = 1, NREP = 2000)
-plot(b1E$dhat,ylim = c(.5,13), main = NA, xlab = "DMU",ylab ="Efficiency CRS Otput Orientation")
+plot(b1E$dhat,ylim = c(.5,10), main = NA, xlab = "DMU",ylab ="Efficiency CRS Otput Orientation")
 points(b1E$dhat.bc, pch=5)
-for(i in 1:30) lines(rep(i,2), b1E$conf.int[i,], type="o",pch=3)
+for(i in 1:153) lines(rep(i,2), b1E$conf.int[i,], type="o",pch=3)
 
 
 # Intervalos de confiança 2º Estágio
 I2<-InsumosF2
-O2<-InsumosF2
+O2<-ProdutosF2
 d2E<-FEAR::dea(I2,O2,RTS = 1, ORIENTATION = 1) # com VRS orientado aos outputs
-b2E<-boot.sw98(I2,O2, RTS = 1, ORIENTATION = 1, NREP = 2000)
-plot(b2E$dhat,ylim = c(.5,42), main = NA, xlab = "DMU",ylab ="Efficiency CRS Output Orientation")
+b2E<-boot.sw98(I2, O2, RTS = 1, ORIENTATION = 1, NREP = 2000)
+plot(b2E$dhat,ylim = c(.5,2), main = NA, xlab = "DMU",ylab ="Efficiency CRS Output Orientation")
 points(b2E$dhat.bc, pch=5)
-for(i in 1:30) lines(rep(i,2), b2E$conf.int[i,], type="o",pch=3)
+for(i in 1:153) lines(rep(i,2), b2E$conf.int[i,], type="o",pch=3)
 
 # Intervalos de confiança 3º Estágio
 I3<-InsumosF3
 O3<-ProdutosF3
 d3E<-FEAR::dea(I3,O3,RTS = 3, ORIENTATION = 1) # com CRS orientado aos outputs
 b3E<-boot.sw98(I3,O3, RTS = 3, ORIENTATION = 1, NREP = 2000)
-plot(b3E$dhat,ylim = c(.5,13), main = NA, xlab = "DMU",ylab ="Efficiency CRS Otput Orientation")
+plot(b3E$dhat,ylim = c(.5,3), main = NA, xlab = "DMU",ylab ="Efficiency CRS Otput Orientation")
 points(b3E$dhat.bc, pch=5)
-for(i in 1:30) lines(rep(i,2), b3E$conf.int[i,], type="o",pch=3)
+for(i in 1:153) lines(rep(i,2), b3E$conf.int[i,], type="o",pch=3)
 
+ANEXOB<- BDDEA %>% select(ID, NO_ENTIDADE, Dependência.Administrativa) %>% cbind(b1E$dhat, b1E$dhat.bc, b1E$conf.int) %>% cbind(b2E$dhat, b2E$dhat.bc, b2E$conf.int) %>% cbind(b3E$dhat, b3E$dhat.bc, b3E$conf.int)
+
+ANEXOBS<- ANEXOB %>% select(ID, NO_ENTIDADE, Dependência.Administrativa, `b1E$dhat`, `b1E$dhat.bc`, `b2E$dhat`, `b2E$dhat.bc`, `b3E$dhat`, `b3E$dhat.bc`) 
+summary(ANEXOBS)
+
+
+
+
+ANEXOBS1 <- ANEXOBS %>% mutate(A1 = (1/(ANEXOBS$`b1E$dhat`)),
+                                A2 = (1/(ANEXOBS$`b1E$dhat.bc`))) %>% 
+                        mutate(B1 = (1/(ANEXOBS$`b2E$dhat`)),
+                                B2 = (1/(ANEXOBS$`b2E$dhat.bc`))) %>% 
+                        mutate(C1 = (1/(ANEXOBS$`b3E$dhat`)),
+                                C2 = (1/(ANEXOBS$`b3E$dhat.bc`))) %>% select(ID, NO_ENTIDADE, Dependência.Administrativa, A1,A2,B1,B2,C1,C2) %>% 
+                        mutate(Dependência.Administrativa = case_when(Dependência.Administrativa == "Estadual" ~ "Publica", 
+                                                                       Dependência.Administrativa == "Federal" ~ "Publica",
+                                                                       Dependência.Administrativa == "Privada" ~ "Privada"))
+
+
+
+
+
+
+
+
+
+Pu <- ANEXOBS1 %>% filter(Dependência.Administrativa== "Publica")
+
+summary(Pu)
+
+sd(Pu$A2)
+
+sd(Pu$B2)
+
+sd(Pu$C2)
+
+PI <- ANEXOBS1 %>% filter(Dependência.Administrativa== "Privada")
+
+summary(PI)
+
+
+sd(PI$A2)
+
+sd(PI$B2)
+
+sd(PI$C2)
+
+
+
+summary(ANEXOBS1)
+
+sd(ANEXOBS1$A1)
+sd(ANEXOBS1$A2)
+
+
+sd(ANEXOBS1$B1)
+sd(ANEXOBS1$B2)
+
+sd(ANEXOBS1$C1)
+sd(ANEXOBS1$C2)
+
+
+boxplot(ANEXOBS1$A1, ANEXOBS1$A2, names = c("Eficiência Deterministica","Eficiência com correção de viés"))
+boxplot(ANEXOBS1$B1, ANEXOBS1$B2, names = c("Eficiência Deterministica","Eficiência com correção de viés"))
+boxplot(ANEXOBS1$C1, ANEXOBS1$C2, names = c("Eficiência Deterministica","Eficiência com correção de viés"))
+
+
+write.xlsx(ANEXOB, "ANEXOB.xlsx")
+
+
+
+ANEXOC <- ANEXOBS1 %>%  mutate(EF_Final = round((A2*B2*C2), 7)) %>% 
+                        select(ID, NO_ENTIDADE, Dependência.Administrativa,EF_Final) 
+
+
+boxplot(ANEXOC$EF_Final ~ ANEXOC$Dependência.Administrativa,
+        xlab = "Escolas",
+        ylab = "Eficiência de Shephard")
+
+PU1 <- ANEXOC %>% filter(Dependência.Administrativa== "Publica")
+summary(PU1)
+sd(PU1$EF_Final)
+PI1 <- ANEXOC %>% filter(Dependência.Administrativa== "Privada")
+summary(PI1)
+sd(PI1$EF_Final)
+
+write.xlsx(ANEXOC, "ANEXOC.xlsx")
